@@ -1,9 +1,10 @@
 from keras.models import load_model
 import numpy as np
-from scripts.main.generator import KerasGenerator
-from scripts.main.metrics import iou_loss_core
+from generator import KerasGenerator
+from metrics import iou_loss_core
 
-model = load_model('../../models/weights_time_5.0loss_0.025.h5', custom_objects={'iou_loss_core': iou_loss_core})
+# model = load_model('../../models/weights_time_5.0loss_0.025.h5', custom_objects={'iou_loss_core': iou_loss_core})
+model = load_model('../../models/weights.03-0.02154.hdf5', custom_objects={'iou_loss_core': iou_loss_core})
 
 keras_gen = KerasGenerator(annFile='../../coco_dataset/annotations/instances_val2017.json',
                      dataset_dir='coco_dataset',

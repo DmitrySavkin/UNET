@@ -4,7 +4,7 @@ sys.path.append(PROJECT_PATH) # чтобы из консольки можно б
 from keras import Model
 from keras.layers import Conv2D, BatchNormalization, Activation, MaxPooling2D, Dropout, Conv2DTranspose, concatenate, \
     Reshape, Flatten, Add
-from scripts.main.metrics import iou_loss_core
+from metrics import iou_loss_core
 
 
 def convolution_block(x, filters, size, strides=(1,1), padding='same', activation=True):

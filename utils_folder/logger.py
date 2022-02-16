@@ -4,16 +4,18 @@ from time import time
 from keras.callbacks import TensorBoard, Callback
 from telepyth import TelepythClient
 from datetime import datetime
+#import tensorflow.compat.v1 as tf
+
 tp = TelepythClient('14227435377386201718')
 
 
 class TensorBoardBatchLogger(TensorBoard):
     def __init__(self, project_path, batch_size, log_every=1, VERBOSE=0, **kwargs):
-        tf.summary.FileWriterCache.clear()
+        #tf.disable_v2_behavior()
+        #tf.summary.FileWriterCache.clear()
         self.project_path = project_path
         self.batch_size = batch_size
         self.log_dir = self._create_run_folder()
-
         super().__init__(log_dir=self.log_dir, batch_size=self.batch_size, **kwargs)
         self.log_every = log_every
         self.counter = 0
@@ -22,6 +24,7 @@ class TensorBoardBatchLogger(TensorBoard):
         self.counter_for_mean = 1
         self.epoch_end = False
         self.VERBOSE = VERBOSE
+        self.writer =  tf.train.SummaryWriter(self.log_dir)        
         if self.VERBOSE:
             text = '*Start training:' + str(datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + '*' + '\n'
             tp.send_text(text)

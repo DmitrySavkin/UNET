@@ -1,4 +1,5 @@
 import tensorflow as tf
+import keras
 
 gpus = tf.config.experimental.list_physical_devices('GPU')
 if gpus:
@@ -32,6 +33,7 @@ from unet import get_unet, build_model
 from metrics import iou_loss_core
 from generator import KerasGenerator
 from utils_folder import config
+from random import randint
 
 config = config.CocoConfig()
 
@@ -42,14 +44,12 @@ class DataGen(tf.keras.utils.Sequence):
   def __init__(self , path_input , path_mask , batch_size = 8 , image_size = 128, size = -1):
     # path_input = 'content/train2014/'
     # path_mask = 'content/mask_train_2014/'
-    if size < 1:
-      self.ids = sorted(os.listdir(path_input))
-    else:
-      self.ids = sorted(os.listdir(path_input))[0:size]
+    self.ids = sorted(os.listdir(path_input))[0:1000]
     self.path_input = path_input
     self.path_mask = path_mask
     self.batch_size = batch_size
     self.image_size = image_size
+    self.size = size
     self.on_epoch_end()
   
   def __load__(self , id_name):
@@ -76,7 +76,7 @@ class DataGen(tf.keras.utils.Sequence):
   def __getitem__(self , index):
     if (index + 1)*self.batch_size > len(self.ids):
       self.batch_size = len(self.ids) - index * self.batch_size
-        
+    # index = randint(0, len(self.ids) - 1)    
     file_batch = self.ids[index * self.batch_size : (index + 1) * self.batch_size]
     
     images = []
@@ -100,14 +100,14 @@ class DataGen(tf.keras.utils.Sequence):
   
   def __len__(self):
     
-    return int(np.ceil(len(self.ids) / float(self.batch_size)))
+    return  int(np.ceil(len(self.ids) / float(self.batch_size)))
 
 
 
 
 image_size = 128
 epochs = 100
-batch_size = 1
+batch_size = 8
 train_gen = DataGen(path_input = "content/train2014" , path_mask = "content/mask_train_2014/" , batch_size = batch_size , image_size = image_size, size = 1)
 val_gen = DataGen(path_input =  "content/val2014", path_mask =  "content/mask_val_2014", batch_size = batch_size , image_size = image_size)
 
@@ -122,7 +122,7 @@ train_steps =  len(os.listdir( "content/train2014"))/batch_size
 # Сетка 2:
 data_callback = DataCallback(path=PROJECT_PATH)
 model_ = CreateModel(img_size_target=image_size)
-model_.compile(loss='binary_crossentropy', optimizer="adam", metrics=['accuracy', iou_loss_core])
+model_.compile(loss='binary_crossentropy', optimizer=tf.keras.optimizers.Adam(lr=config.LEARNING_RATE), metrics=['accuracy', iou_loss_core])
 model_.summary()
 
 # experiment name

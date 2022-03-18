@@ -35,14 +35,17 @@ from utils_folder import config
 
 config = config.CocoConfig()
 
+seed = 2019
 
 class DataGen(tf.keras.utils.Sequence):
   
-  def __init__(self , path_input , path_mask , batch_size = 8 , image_size = 128, flag=False):
-    if flag:
-      self.ids = sorted(os.listdir(path_input))[:1]
+  def __init__(self , path_input , path_mask , batch_size = 8 , image_size = 128, size = -1):
+    # path_input = 'content/train2014/'
+    # path_mask = 'content/mask_train_2014/'
+    if size < 1:
+      self.ids = sorted(os.listdir(path_input))
     else:
-      self.ids = sorted(os.listdir(path_input))   
+      self.ids = sorted(os.listdir(path_input))[0:size]
     self.path_input = path_input
     self.path_mask = path_mask
     self.batch_size = batch_size
@@ -61,8 +64,9 @@ class DataGen(tf.keras.utils.Sequence):
     # print("Mask ", mask , (self.image_size , self.image_size), "Mask path " , mask_path)
     # input("Enter")
     mask = cv2.resize(mask , (self.image_size , self.image_size))
+    _, mask = cv2.threshold(mask, 127, 255, cv2.THRESH_BINARY)  # this line was added
     mask = mask.reshape((self.image_size , self.image_size , 1))
-      
+
     #normalize image
     image = image / 255.0
     mask = mask / 255.0
@@ -70,7 +74,6 @@ class DataGen(tf.keras.utils.Sequence):
     return image , mask
   
   def __getitem__(self , index):
-    
     if (index + 1)*self.batch_size > len(self.ids):
       self.batch_size = len(self.ids) - index * self.batch_size
         
@@ -80,7 +83,6 @@ class DataGen(tf.keras.utils.Sequence):
     masks = []
     
     for id_name in file_batch : 
-      
       _img , _mask = self.__load__(id_name)
       images.append(_img)
       masks.append(_mask)
@@ -88,7 +90,6 @@ class DataGen(tf.keras.utils.Sequence):
     
     images = np.array(images)
     masks = np.array(masks)
-    
     
     return images , masks
   
@@ -102,11 +103,17 @@ class DataGen(tf.keras.utils.Sequence):
     return int(np.ceil(len(self.ids) / float(self.batch_size)))
 
 
+
+
 image_size = 128
 epochs = 100
 batch_size = 1
-train_gen = DataGen(path_input = "content/train2014" , path_mask = "content/mask_train_2014/" , batch_size = batch_size , image_size = image_size,  flag=True)
-val_gen = DataGen(path_input =  "content/val2014", path_mask =  "content/mask_val_2014", batch_size = batch_size , image_size = image_size,   flag=True)
+train_gen = DataGen(path_input = "content/train2014" , path_mask = "content/mask_train_2014/" , batch_size = batch_size , image_size = image_size, size = 1)
+val_gen = DataGen(path_input =  "content/val2014", path_mask =  "content/mask_val_2014", batch_size = batch_size , image_size = image_size)
+
+
+train_steps =  len(os.listdir( "content/train2014"))/batch_size
+
 # Сетка 1:
 # input_img = Input(img_size_target, name='img')
 # model = get_unet(input_img, exit_channels=keras_gen.num_cats, n_filters=8, dropout=0.05, batchnorm=True)
@@ -122,6 +129,7 @@ model_.summary()
 name = "exp-000"
 # path where tensorboard logs will be stored
 log_dir = "experiments"
+logger = tf.keras.callbacks.TensorBoard(log_dir=log_dir,  update_freq='epoch', profile_batch=0,  histogram_freq=1)
 
 # create our custom logger
 # logger = SummaryWriter(log_dir=osp.join(log_dir, name))
@@ -137,9 +145,11 @@ logger = tf.keras.callbacks.TensorBoard(log_dir=log_dir,  update_freq='epoch', p
 # save_model_batch = SaveModelEachBatch('models')
 save_model_batch = SaveModelEachBatch('models23')
 model_check = ModelCheckpoint('models23/weights.{epoch:02d}-{loss:.5f}.hdf5', monitor='loss', verbose=0, save_best_only=True)
-train_steps =  len(os.listdir( "content/train2014"))/batch_size
+train_steps =  len(train_gen)
+print('before')
 history = model_.fit_generator(train_gen, 
                               validation_data = val_gen , 
-                              steps_per_epoch= 1,
+                              steps_per_epoch= train_steps,
                               epochs=100,
                               callbacks=[ model_check, logger, save_model_batch])
+print('after')

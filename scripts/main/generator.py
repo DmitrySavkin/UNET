@@ -20,20 +20,30 @@ config = config.CocoConfig()
 class KerasGenerator:
     def __init__(self, annFile, batch_size, dataset_dir, subset, year, shuffle=True):
         self.coco = COCO(annFile)
+        CATEGORY_NAMES=['person']
+        self.categories = self.coco.getCatIds(catNms=CATEGORY_NAMES)
+        self._keys = dict.fromkeys(self.categories , 1).keys()
         self.batch_size = batch_size
-        self.num_cats = len(list(self.coco.cats.keys())) # без background !
-        self.total_imgs = len(self.coco.imgToAnns.keys())
-        self.all_images_ids = list(self.coco.imgToAnns.keys())
+        self.num_cats = len(list(self._keys)) # без background !
+        self._annotations = dict.fromkeys(self.coco.getAnnIds(catIds=self.categories), 1).keys()
+        _imgIds = self.coco.getImgIds(catIds=self.categories)
+        self.total_imgs = len(self.coco.loadImgs(_imgIds))
+        self.all_images_ids = self.coco.loadImgs(_imgIds)
+        print(type(self.coco.loadImgs(_imgIds)), " !!!! ", type(self.coco.imgToAnns.keys()))
+        # input("Enter")
         self.shuffle = shuffle
         self.dataset_dir = dataset_dir
         self.subset = subset
         self.year = year
 
-        self.map_id_cat = {cat_id: i for i, cat_id in enumerate(list(self.coco.cats.keys()))} # нулевой слой больше не BackGround
+        self.map_id_cat = {cat_id: i for i, cat_id in enumerate(list(self._keys))} # нулевой слой больше не BackGround
 
         # Add paths
         image_dir = "{}/images/{}{}".format(self.dataset_dir, self.subset, self.year)
-        for i in self.all_images_ids:
+        for item in self.all_images_ids:
+            # print(self.coco.imgs.keys(), "  ", item["id"])
+            # input("Enter")
+            i = item["id"]
             self.coco.imgs[i]['path'] = os.path.join(image_dir, self.coco.imgs[i]['file_name'])
 
     def load_image(self, image_id):
@@ -76,18 +86,21 @@ class KerasGenerator:
             batch_x = np.array([])
             batch_y = np.array([])
             # Цикл по батчу
-            for id_image in batch_train_indecies:
+            for item in batch_train_indecies:
                 # 'Converting Annotations to Segmentation Masks...'
+                id_image =  item["id"]
                 img = self.coco.imgs[id_image]
 
                 if True:
                     target_shape = (img['height'], img['width'],  self.num_cats)
-                ann_ids = self.coco.getAnnIds(imgIds=id_image, iscrowd=None)
+                ann_ids = self.coco.getAnnIds(imgIds=id_image, catIds = self.categories, iscrowd=None)
                 anns = self.coco.loadAnns(ann_ids)
                 mask_one_hot = np.zeros(target_shape, dtype=np.uint8)
                 # mask_one_hot[:, :, 0] = 1  # every pixel begins as background
 
                 for ann in anns:
+                    # print(ann)
+                    # input("Annotation Enter")
                     mask_partial = self.coco.annToMask(ann)
                     # mask_partial = cv2.resize(mask_partial,
                     #                           (target_shape[1], target_shape[0]),

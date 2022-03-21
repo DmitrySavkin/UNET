@@ -20,7 +20,7 @@ config = config.CocoConfig()
 class KerasGenerator:
     def __init__(self, annFile, batch_size, dataset_dir, subset, year, shuffle=True):
         self.coco = COCO(annFile)
-        CATEGORY_NAMES=['person']
+        CATEGORY_NAMES=['stop sign']
         self.categories = self.coco.getCatIds(catNms=CATEGORY_NAMES)
         self._keys = dict.fromkeys(self.categories , 1).keys()
         self.batch_size = batch_size

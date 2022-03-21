@@ -32,8 +32,6 @@ class KerasGenerator:
         _imgIds = self.coco.getImgIds(catIds=self.categories)
         self.total_imgs = len(self.coco.loadImgs(_imgIds))
         self.all_images_ids = self.coco.loadImgs(_imgIds)
-        print(type(self.coco.loadImgs(_imgIds)), " !!!! ", type(self.coco.imgToAnns.keys()))
-        # input("Enter")
         self.shuffle = shuffle
         self.dataset_dir = dataset_dir
         self.subset = subset

@@ -30,7 +30,7 @@ from utils_folder.logger import SaveModelEachBatch
 from utils_folder.logger import TensorBoardBatchLogger
 from unet import get_unet, build_model
 from metrics import iou_loss_core
-from generator import KerasGenerator, MyDataGen
+from generator import KerasGenerator
 from utils_folder import config
 
 config = config.CocoConfig()
@@ -53,24 +53,24 @@ from utils_folder import config
 config = config.CocoConfig()
 
 # Генератор данных:
-keras_gen = KerasGenerator(annFile='../../coco_dataset/annotations/instances_train2017.json',
+keras_gen = KerasGenerator(annFile='coco_dataset/annotations/instances_train2017.json',
                      dataset_dir='coco_dataset',
                      subset='train',
                      year='2017',
                      batch_size=1)
-gen = keras_gen.generate_batch()
-keras_gen_1 = KerasGenerator(annFile='../../coco_dataset/annotations/instances_val2017.json',
+# gen = keras_gen.generate_batch()
+keras_gen_1 = KerasGenerator(annFile='coco_dataset/annotations/instances_val2017.json',
                      dataset_dir='coco_dataset',
                      subset='val',
                      year='2017',
                      batch_size=1)
-val_gen = keras_gen_1.generate_batch()
+# val_gen = keras_gen_1.generate_batch()
 img_size_target = (config.IMAGE_MAX_DIM, config.IMAGE_MAX_DIM, 3)
 
-gen =  MyDataGen(keras_gen)
-val_gen = MyDataGen(keras_gen_1)
-print(gen, val_gen)
-input("Stop")
+# gen =  MyDataGen(keras_gen)
+# val_gen = MyDataGen(keras_gen_1)
+# print(gen, val_gen)
+# input("Stop")
 # Сетка 1:
 # input_img = Input(img_size_target, name='img')
 # model = get_unet(input_img, exit_channels=keras_gen.num_cats, n_filters=8, dropout=0.05, batchnorm=True)
@@ -86,7 +86,7 @@ model_check = ModelCheckpoint('../../models/weights.{epoch:02d}-{loss:.5f}.hdf5'
 # tf_logger = TensorBoardBatchLogger(project_path=PROJECT_PATH, batch_size=keras_gen.batch_size)
 save_model_batch = SaveModelEachBatch('../../models')
 logger = tf.keras.callbacks.TensorBoard(log_dir=log_dir,  update_freq='epoch', profile_batch=0,  histogram_freq=1)
-history = model_.fit_generator(gen, 
+history = model_.fit_generator(keras_gen, validation_data = keras_gen_1,
                               steps_per_epoch=keras_gen.total_imgs // keras_gen.batch_size,
-                              epochs=3,
+                              epochs=30,
                               callbacks=[ model_check, save_model_batch, logger])

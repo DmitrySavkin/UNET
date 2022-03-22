@@ -19,7 +19,7 @@ from pycocotools.coco import COCO
 config = config.CocoConfig()
 
 
-class KerasGenerator:
+class KerasGenerator(tf.keras.utils.Sequence):
     def __init__(self, annFile, batch_size, dataset_dir, subset, year, shuffle=True):
         self.annFile = annFile
         self.coco = COCO(annFile)
@@ -38,15 +38,68 @@ class KerasGenerator:
         self.year = year
         self.map_id_cat = {cat_id: i for i, cat_id in enumerate(list(self._keys))}  # нулевой слой больше не BackGround
         self.image_dir = "{}/images/{}{}".format(self.dataset_dir, self.subset, self.year)
-        for item in self.all_images_ids:
-            # print(self.coco.imgs.keys(), "  ", item["id"])
-            # input("Enter")
-            i = item["id"]
-            self.coco.imgs[i]['path'] = os.path.join(self.image_dir, self.coco.imgs[i]['file_name'])
+        self.ids = os.listdir(self.image_dir)
 
+    def load_image_mask(self, id_image):
+        img = self.coco.imgs[id_image]
+        if True:
+            target_shape = (img['height'], img['width'], self.num_cats)
+        ann_ids = self.coco.getAnnIds(imgIds=id_image, catIds=self.categories, iscrowd=None)
+        anns = self.coco.loadAnns(ann_ids)
+        mask_one_hot = np.zeros(target_shape, dtype=np.uint8)
+        # mask_one_hot[:, :, 0] = 1  # every pixel begins as background
+
+        for ann in anns:
+            # print(ann)
+            # input("Annotation Enter")
+            mask_partial = self.coco.annToMask(ann)
+            # mask_partial = cv2.resize(mask_partial,
+            #                           (target_shape[1], target_shape[0]),
+            #                           interpolation=cv2.INTER_NEAREST)
+            mask_one_hot[mask_partial > 0, self.map_id_cat[ann['category_id']]] = 1
+            # mask_one_hot[mask_partial > 0, 0] = 0 # Соотв. пиксели в нулевом слое (background) обнуляются
+
+        # load_image
+        img = self.load_image(image_id=id_image)
+
+        # Rescale image and mask:
+        image, window, scale, padding, _ = utils.resize_image(
+            img,
+            min_dim=config.IMAGE_MIN_DIM,
+            max_dim=config.IMAGE_MAX_DIM,
+            mode=config.IMAGE_RESIZE_MODE)
+        mask = utils.resize_mask(mask_one_hot, scale, padding)
+        image = np.expand_dims(image, axis=0)
+        mask = np.expand_dims(mask, axis=0)
+        return image, mask
+
+
+    def __load__(self, file_annotation):
+         image, mask = self.load_image_mask(file_annotation["id"])
+         image = image / 255.0
+         mask = mask / 255.0
+         return image, mask
+
+    def __getitem__(self , index):
+        
+        file_batch = self.all_images_ids[index * self.batch_size : (index + 1) * self.batch_size]
+        images = []
+        masks = []
+        
+        for file_annotation in file_batch:
+            _img, _mask = self.__load__(file_annotation)
+            images.append(_img)
+            masks.append(_mask)
+
+        
+
+        return images, masks
+       
     def __len__(self):
         return self.total_imgs // self.batch_size
 
+    def on_epoch_end(self):
+        pass
     def load_image(self, image_id):
         """Load the specified image and return a [H,W,3] Numpy array.
         """
@@ -54,13 +107,13 @@ class KerasGenerator:
         self.coco.imgs[image_id]['path'] = os.path.join(self.image_dir, self.coco.imgs[image_id]['file_name'])
         # print(image_id, self.coco.imgs[image_id])
         # input("Inside load image enter")
-        path = os.path.join('../../', self.coco.imgs[image_id]['path'])
+        path = self.coco.imgs[image_id]['path']
 
         try:
             image = skimage.io.imread(path)
         except:
             file_name = self.coco.imgs[image_id]['file_name']
-            file_path = "../../{}/images/{}{}/{}".format(self.dataset_dir, self.subset, self.year, file_name)
+            file_path = "{}/images/{}{}/{}".format(self.dataset_dir, self.subset, self.year, file_name)
             url = self.coco.imgs[self.coco.imgs[image_id]['id']]['coco_url']
             image = skimage.io.imread(url)
             im = Image.fromarray(image)
@@ -72,6 +125,7 @@ class KerasGenerator:
         if image.shape[-1] == 4:
             image = image[..., :3]
         return image
+    
 
     def generate_batch(self):
         idx_global = 0
@@ -104,98 +158,5 @@ class KerasGenerator:
                 # del mask_one_hot
             yield batch_x, batch_y
             batch_train_indecies = list(islice(i, self.batch_size))
-            self.batch_train_indecies = batch_train_indecies
-
-    def load_image_mask(self, id_image):
-        img = self.coco.imgs[id_image]
-        if True:
-            target_shape = (img['height'], img['width'], self.num_cats)
-        ann_ids = self.coco.getAnnIds(imgIds=id_image, catIds=self.categories, iscrowd=None)
-        anns = self.coco.loadAnns(ann_ids)
-        mask_one_hot = np.zeros(target_shape, dtype=np.uint8)
-        # mask_one_hot[:, :, 0] = 1  # every pixel begins as background
-
-        for ann in anns:
-            # print(ann)
-            # input("Annotation Enter")
-            mask_partial = self.coco.annToMask(ann)
-            # mask_partial = cv2.resize(mask_partial,
-            #                           (target_shape[1], target_shape[0]),
-            #                           interpolation=cv2.INTER_NEAREST)
-            mask_one_hot[mask_partial > 0, self.map_id_cat[ann['category_id']]] = 1
-            # mask_one_hot[mask_partial > 0, 0] = 0 # Соотв. пиксели в нулевом слое (background) обнуляются
-
-        # load_image
-        img = self.load_image(image_id=id_image)
-
-        # Rescale image and mask:
-        image, window, scale, padding, _ = utils.resize_image(
-            img,
-            min_dim=config.IMAGE_MIN_DIM,
-            max_dim=config.IMAGE_MAX_DIM,
-            mode=config.IMAGE_RESIZE_MODE)
-        mask = utils.resize_mask(mask_one_hot, scale, padding)
-
-        # Закидываем в батч:
-        image = np.expand_dims(image, axis=0)
-        mask = np.expand_dims(mask, axis=0)
-        return image, mask
-
-
-    def load_image_mask_by_index(self, index):
-        img = list(self.coco.imgs.values())[index]
-        # print(img)
-        # input("Inside Enter")
-        id_image = img['id']
-        if True:
-            target_shape = (img['height'], img['width'], self.num_cats)
-        ann_ids = self.coco.getAnnIds(imgIds=id_image, catIds=self.categories, iscrowd=None)
-        anns = self.coco.loadAnns(ann_ids)
-        mask_one_hot = np.zeros(target_shape, dtype=np.uint8)
-        # mask_one_hot[:, :, 0] = 1  # every pixel begins as background
-
-        for ann in anns:
-            # print(ann)
-            # input("Annotation Enter")
-            mask_partial = self.coco.annToMask(ann)
-            # mask_partial = cv2.resize(mask_partial,
-            #                           (target_shape[1], target_shape[0]),
-            #                           interpolation=cv2.INTER_NEAREST)
-            mask_one_hot[mask_partial > 0, self.map_id_cat[ann['category_id']]] = 1
-            # mask_one_hot[mask_partial > 0, 0] = 0 # Соотв. пиксели в нулевом слое (background) обнуляются
-
-        # load_image
-        img = self.load_image(image_id=id_image)
-
-        # Rescale image and mask:
-        image, window, scale, padding, _ = utils.resize_image(
-            img,
-            min_dim=config.IMAGE_MIN_DIM,
-            max_dim=config.IMAGE_MAX_DIM,
-            mode=config.IMAGE_RESIZE_MODE)
-        mask = utils.resize_mask(mask_one_hot, scale, padding)
-
-        # Закидываем в батч:
-        image = np.expand_dims(image, axis=0)
-        mask = np.expand_dims(mask, axis=0)
-        return image, mask
-
-        
+            self.batch_train_indecies = batch_train_indecies        
        
-
-class MyDataGen(tf.keras.utils.Sequence):
-
-    def __init__(self, generator : KerasGenerator):
-        self.generator: KerasGenerator = generator
-        self.batch_size = generator.batch_size
-        _dirname = os.path.dirname(self.generator.annFile)
-        self.ids = os.listdir(_dirname)
-        
-    def __getitem__(self, index):
-       return self.generator.load_image_mask_by_index(index)
-
-    def on_epoch_end(self):
-            pass
-
-    def __len__(self):
-        return len(self.generator)

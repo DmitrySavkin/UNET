@@ -95,6 +95,7 @@ class SaveModelEachBatch(Callback):
     def on_batch_end(self, batch, logs=None):
         if (time() - self.start_time) / 60 / 60 > 5:
             time_ = round((time() - self.start_time) / 60 / 60, 2)
+            
             loss = round(logs['mean_loss'], 3)
             iou = round(logs['iou_loss_core'], 3) # TODO проверить
             path_to_my_model = os.path.join(self.models_path, 'weights_' + 'time_' + str(time_) + 'loss_' + str(loss) + 'iou_' +  '.h5')

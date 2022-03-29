@@ -1,8 +1,10 @@
 from __future__ import division, print_function, unicode_literals
 from itertools import islice
 
+import cv2
 import os
 import sys
+
 
 PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(PROJECT_PATH)  # чтобы из консольки можно было запускать
@@ -20,7 +22,7 @@ config = config.CocoConfig()
 
 
 class KerasGenerator(tf.keras.utils.Sequence):
-    def __init__(self, annFile, batch_size, dataset_dir, subset, year, shuffle=True):
+    def __init__(self, annFile, batch_size, dataset_dir, subset, year, shuffle=True, target_shape=set()):
         self.annFile = annFile
         self.coco = COCO(annFile)
         CATEGORY_NAMES = ['stop sign']
@@ -48,20 +50,16 @@ class KerasGenerator(tf.keras.utils.Sequence):
         anns = self.coco.loadAnns(ann_ids)
         mask_one_hot = np.zeros(target_shape, dtype=np.uint8)
         # mask_one_hot[:, :, 0] = 1  # every pixel begins as background
-
         for ann in anns:
             # print(ann)
             # input("Annotation Enter")
             mask_partial = self.coco.annToMask(ann)
-            # mask_partial = cv2.resize(mask_partial,
-            #                           (target_shape[1], target_shape[0]),
-            #                           interpolation=cv2.INTER_NEAREST)
+           
             mask_one_hot[mask_partial > 0, self.map_id_cat[ann['category_id']]] = 1
             # mask_one_hot[mask_partial > 0, 0] = 0 # Соотв. пиксели в нулевом слое (background) обнуляются
 
         # load_image
         img = self.load_image(image_id=id_image)
-
         # Rescale image and mask:
         image, window, scale, padding, _ = utils.resize_image(
             img,

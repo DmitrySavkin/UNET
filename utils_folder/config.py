@@ -43,7 +43,7 @@ class CocoConfig:
     # NAME = None  # Override in sub-classes
 
     # NUMBER OF GPUs to use. When using only a CPU, this needs to be set to 1.
-    GPU_COUNT = 1
+    GPU_COUNT = 2
 
     # Number of images to train with on each GPU. A 12GB GPU can typically
     # handle 2 images of 1024x1024px.
@@ -142,8 +142,8 @@ class CocoConfig:
     #         size IMAGE_MIN_DIM x IMAGE_MIN_DIM. Can be used in training only.
     #         IMAGE_MAX_DIM is not used in this mode.
     IMAGE_RESIZE_MODE = "square"
-    IMAGE_MIN_DIM = 200
-    IMAGE_MAX_DIM = 400
+    IMAGE_MIN_DIM = 128
+    IMAGE_MAX_DIM = 128
     # Minimum scaling ratio. Checked after MIN_IMAGE_DIM and can force further
     # up scaling. For example, if set to 2 then images are scaled up to double
     # the width and height, or more, even if MIN_IMAGE_DIM doesn't require it.
